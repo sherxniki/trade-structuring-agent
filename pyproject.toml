@@ -1,0 +1,21 @@
+[project]
+name = "trade-structuring-agent"
+version = "0.1.0"
+description = "Describe a market view in plain English and get option trades designed, priced and compared."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.50",
+    "numpy",
+    "pandas",
+    "scipy",
+    "plotly",
+    "yfinance",
+    "anthropic",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false

@@ -1,6 +1,6 @@
-__pycache__/
 *.pyc
-.venv/
-.streamlit/secrets.toml
 .env
 .pytest_cache/
+.streamlit/secrets.toml
+.venv/
+__pycache__/
