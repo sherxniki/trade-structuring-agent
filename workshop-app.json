@@ -1,0 +1,26 @@
+{
+  "slug": "trade-structuring-agent",
+  "title": "Trade Structuring Agent",
+  "description": "Describe what you think a stock will do in plain English. The agent reads your view, pulls market data, designs three option trades, prices them and recommends the best fit.",
+  "instructions": "Type a market view (for example: 'I think Apple goes up a bit over the next 3 months, and I don't want to spend much') or click an example, then press Build my trade. Use the Payoff charts tab to compare trades and the Advanced tab for greeks and scenarios. If live prices don't load, switch Market data to Sample (offline) in the sidebar.",
+  "runtime": "python",
+  "start": "streamlit run app.py --server.port ${PORT:-8501} --server.address 0.0.0.0 --server.headless true",
+  "port": 8501,
+  "env": {
+    "ANTHROPIC_API_KEY": {
+      "required": false,
+      "description": "Optional. Lets the AI read the view and write the explanation. Without it, a built-in keyword reader is used."
+    }
+  },
+  "services": [
+    {
+      "name": "Yahoo Finance (via yfinance)",
+      "cost": "Free"
+    },
+    {
+      "name": "Anthropic API",
+      "required": false,
+      "cost": "Optional; a few cents per use at most"
+    }
+  ]
+}
