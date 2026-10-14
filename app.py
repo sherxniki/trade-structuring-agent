@@ -4,6 +4,7 @@ Run locally:  streamlit run app.py
 """
 
 import math
+import os
 
 import numpy as np
 import pandas as pd
@@ -50,15 +51,17 @@ st.markdown(
 
 with st.sidebar:
     st.header("Settings")
-    data_mode = st.radio("Market data", ["Live (Yahoo Finance)", "Sample (offline)"],
+    # The class app store has no public internet, so default to sample data there.
+    hosted = bool(os.environ.get("WORKSHOP_RUN_TOKEN"))
+    data_mode = st.radio("Market data", ["Live (Yahoo Finance)", "Sample (offline)"], index=1 if hosted else 0,
                          help="Sample mode never needs the internet, so it is safest for live demos.")
     use_live = data_mode.startswith("Live")
 
-    has_key = view_parser.llm_available()
-    use_llm = st.toggle("Use AI to read the view", value=has_key, disabled=not has_key,
-                           help="Needs ANTHROPIC_API_KEY. Without it, a keyword parser is used.")
-    if not has_key:
-        st.caption("No API key found: using the built-in keyword parser.")
+    has_llm = view_parser.llm_available()
+    use_llm = st.toggle("Use AI to read the view", value=has_llm, disabled=not has_llm,
+                        help="Uses the class app store's model when available. Otherwise a keyword parser is used.")
+    if not has_llm:
+        st.caption("AI model not connected: using the built-in keyword parser.")
 
     default_ticker = st.selectbox("Default ticker (if none mentioned)", list(SAMPLE_DATA), index=0)
     rate = st.slider("Risk-free rate (%)", 0.0, 8.0, 4.0, 0.25) / 100

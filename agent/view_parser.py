@@ -1,14 +1,15 @@
 """Turn a plain-English market view into structured fields.
 
-Uses an LLM (via the Anthropic API) when an API key is available, and a simple keyword parser otherwise,
+Uses an LLM through the class app store's broker when available, and a simple keyword parser otherwise,
 so the demo always works.
 """
 
 import json
-import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import date
+
+from agent import broker
 
 DIRECTIONS = ["bullish", "bearish", "neutral", "volatile", "hedge"]
 
@@ -160,72 +161,67 @@ def parse_with_rules(text, default_ticker="AAPL"):
 # ---------------- LLM parser ----------------
 
 VIEW_TOOL = {
-    "name": "record_view",
-    "description": "Record the user's market view as structured fields.",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "ticker": {"type": "string", "description": "Stock or ETF ticker, e.g. AAPL. Map company names to tickers. Use SPY for 'the market'."},
-            "direction": {"type": "string", "enum": DIRECTIONS,
-                          "description": "bullish/bearish = expects up/down; neutral = expects little movement; volatile = big move but unsure of direction; hedge = owns the stock and wants protection."},
-            "strength": {"type": "string", "enum": ["mild", "strong"]},
-            "move_pct": {"type": ["number", "null"], "description": "Size of expected move in percent if stated, else null."},
-            "horizon_days": {"type": "integer", "description": "Time horizon in calendar days. Default 90 if not stated."},
-            "cost_preference": {"type": "string", "enum": ["any", "low", "zero"],
-                                "description": "low = wants it cheap; zero = wants zero upfront cost; any = not mentioned."},
-            "max_premium": {"type": ["number", "null"], "description": "Max dollars they will spend, if stated."},
-            "limited_risk": {"type": "boolean", "description": "False only if the user says they accept unlimited or large risk."},
+    "type": "function",
+    "function": {
+        "name": "record_view",
+        "description": "Record the user's market view as structured fields.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock or ETF ticker, e.g. AAPL. Map company names to tickers. Use SPY for 'the market'."},
+                "direction": {"type": "string", "enum": DIRECTIONS,
+                              "description": "bullish/bearish = expects up/down; neutral = expects little movement; volatile = big move but unsure of direction; hedge = owns the stock and wants protection."},
+                "strength": {"type": "string", "enum": ["mild", "strong"]},
+                "move_pct": {"type": ["number", "null"], "description": "Size of expected move in percent if stated, else null."},
+                "horizon_days": {"type": "integer", "description": "Time horizon in calendar days. Default 90 if not stated."},
+                "cost_preference": {"type": "string", "enum": ["any", "low", "zero"],
+                                    "description": "low = wants it cheap; zero = wants zero upfront cost; any = not mentioned."},
+                "max_premium": {"type": ["number", "null"], "description": "Max dollars they will spend, if stated."},
+                "limited_risk": {"type": "boolean", "description": "False only if the user says they accept unlimited or large risk."},
+            },
+            "required": ["ticker", "direction", "strength", "horizon_days", "cost_preference", "limited_risk"],
         },
-        "required": ["ticker", "direction", "strength", "horizon_days", "cost_preference", "limited_risk"],
     },
 }
 
 
-def _api_key():
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if key:
-        return key
-    try:
-        import streamlit as st
-        return st.secrets.get("ANTHROPIC_API_KEY")
-    except Exception:
-        return None
-
-
 def llm_available():
-    return bool(_api_key())
+    return broker.available()
 
 
-def model_name():
-    return os.environ.get("ANTHROPIC_MODEL", "claude-haiku-5-5")
-
-
-def parse_with_llm(text, default_ticker="AAPL"):
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=_api_key())
-    response = client.messages.create(
-        model=model_name(),
-        max_tokens=400,
-        tools=[VIEW_TOOL],
-        tool_choice={"type": "tool", "name": "record_view"},
-        messages=[{
-            "role": "user",
-            "content": f"Today is {date.today().isoformat()}. If no ticker is mentioned use {default_ticker}.\n\nMarket view: {text}",
-        }],
-    )
-    data = next(block.input for block in response.content if block.type == "tool_use")
+def _view_from_fields(data, default_ticker):
+    direction = data.get("direction") if data.get("direction") in DIRECTIONS else "bullish"
+    cost = data.get("cost_preference") if data.get("cost_preference") in ("any", "low", "zero") else "any"
     return View(
         ticker=str(data.get("ticker") or default_ticker).upper().lstrip("$"),
-        direction=data.get("direction", "bullish"),
-        strength=data.get("strength", "mild"),
+        direction=direction,
+        strength="strong" if data.get("strength") == "strong" else "mild",
         move_pct=data.get("move_pct"),
         horizon_days=int(max(7, min(int(data.get("horizon_days") or 90), 730))),
-        cost_preference=data.get("cost_preference", "any"),
+        cost_preference=cost,
         max_premium=data.get("max_premium"),
         limited_risk=bool(data.get("limited_risk", True)),
         parsed_by="llm",
     )
+
+
+def parse_with_llm(text, default_ticker="AAPL"):
+    messages = [
+        {"role": "system", "content": (
+            "You turn a person's market view into structured fields. Always answer by calling "
+            f"record_view exactly once. Today is {date.today().isoformat()}. "
+            f"If no ticker is mentioned, use {default_ticker}.")},
+        {"role": "user", "content": text},
+    ]
+    message = broker.chat(messages, tools=[VIEW_TOOL], max_tokens=400)
+    calls = message.get("tool_calls") or []
+    if calls and calls[0]["function"]["name"] == "record_view":
+        data = json.loads(calls[0]["function"]["arguments"])
+    else:
+        # Some models answer with JSON text instead of a tool call.
+        content = message.get("content") or ""
+        data = json.loads(content[content.index("{"): content.rindex("}") + 1])
+    return _view_from_fields(data, default_ticker)
 
 
 def parse_view(text, default_ticker="AAPL", use_llm=True):
@@ -240,29 +236,25 @@ def parse_view(text, default_ticker="AAPL", use_llm=True):
 
 def explain_with_llm(view, md, best, others):
     """Optional: a short natural-language explanation written by the LLM."""
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=_api_key())
     payload = {
         "view": view.to_dict(),
         "market": {"ticker": md.ticker, "spot": round(md.spot, 2), "atm_vol": round(md.atm_vol, 3)},
         "recommended": {"name": best.name, "legs": [l.label() for l in best.legs], "metrics": _clean(best.metrics)},
         "alternatives": [{"name": s.name, "metrics": _clean(s.metrics)} for s in others],
     }
-    response = client.messages.create(
-        model=model_name(),
-        max_tokens=300,
-        messages=[{
-            "role": "user",
-            "content": (
-                "You are a derivatives structurer. In 3 short sentences of plain English, explain why "
-                "the recommended structure fits this view better than the alternatives, and name its "
-                "main risk. No jargon without explaining it. Numbers are per 1 contract.\n\n"
-                + json.dumps(payload, default=str)
-            ),
-        }],
-    )
-    return "".join(b.text for b in response.content if b.type == "text").strip()
+    messages = [{
+        "role": "user",
+        "content": (
+            "You are a derivatives structurer. In 3 short sentences of plain English, explain why "
+            "the recommended structure fits this view better than the alternatives, and name its "
+            "main risk. No jargon without explaining it. Numbers are per 1 contract. "
+            "Reply with plain text only.\n\n" + json.dumps(payload, default=str)
+        ),
+    }]
+    text = (broker.chat(messages, max_tokens=300).get("content") or "").strip()
+    if not text:
+        raise ValueError("The model returned no explanation.")
+    return text
 
 
 def _clean(metrics):

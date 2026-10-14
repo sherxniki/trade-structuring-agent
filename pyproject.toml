@@ -3,7 +3,7 @@ name = "trade-structuring-agent"
 version = "0.1.0"
 description = "Describe a market view in plain English and get option trades designed, priced and compared."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "streamlit>=1.50",
     "numpy",
@@ -11,7 +11,6 @@ dependencies = [
     "scipy",
     "plotly",
     "yfinance",
-    "anthropic",
 ]
 
 [dependency-groups]

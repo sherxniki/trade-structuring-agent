@@ -10,7 +10,7 @@ Describe a market view in plain English, and the agent designs, prices and compa
 
 The agent runs four steps:
 
-1. **Reads the view.** An LLM via the Anthropic API (or a built-in keyword parser if no API key is set) turns the sentence into structured fields: ticker, direction (bullish, bearish, neutral, volatile, hedge), strength, horizon, budget and risk appetite.
+1. **Reads the view.** An LLM through the class app store (or a built-in keyword parser when no model is connected) turns the sentence into structured fields: ticker, direction (bullish, bearish, neutral, volatile, hedge), strength, horizon, budget and risk appetite.
 2. **Gets market data.** Live price and at-the-money implied vol from Yahoo Finance. Falls back to realized vol, then to sample data, so a demo never breaks.
 3. **Designs candidates.** Picks three structures that fit the view, with strikes set from the expected move (implied vol × √time). Risk reversals and collars are solved for close to zero cost.
 4. **Prices, scores and explains.** Black-Scholes prices and greeks for each leg, payoff and breakevens at expiry, market-implied chance of profit, and a fit score that balances payoff if you're right, chance of profit, cost and risk.
@@ -27,24 +27,32 @@ The **Advanced** tab shows position greeks (delta, gamma, vega, theta), a spot �
 
 ## Run it locally
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-Optional: set an Anthropic API key so the LLM reads the view and writes the explanation.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+uv run --locked python run.py
 ```
 
-Without a key, everything still works using the keyword parser and template explanations.
+Open `http://localhost:8080`. Without a model connection, the app uses a built-in keyword parser and template explanations, so everything still works.
 
-## Deploy (shareable link)
+To use the class model locally, copy `.env.example` to `.env`, paste a development token from the class app store (**Account → Local development token**), and start with:
 
-1. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
-2. Create an app from this repo, branch `main`, file `app.py`.
-3. Optional: in the app's **Secrets**, add `ANTHROPIC_API_KEY = "sk-ant-..."`.
+```bash
+uv run --locked --env-file .env python run.py
+```
+
+## Publish on the class app store
+
+1. In **My app**, claim the address `trade-structuring-agent` (it must match `slug` in `workshop-app.json`).
+2. Build the ZIP:
+
+   ```bash
+   uv run --locked python package.py --slug trade-structuring-agent --output ~/Downloads/trade-structuring-agent.zip
+   ```
+
+3. Upload the ZIP in **My app** and publish it.
+
+On the store, model usage comes from each visitor's class allowance, and the app uses sample market data (no public internet there).
 
 ## Demo script (2 minutes)
 
@@ -58,6 +66,8 @@ Without a key, everything still works using the keyword parser and template expl
 
 ```
 app.py                  Streamlit UI
+run.py                  Starts the app on the platform's port
+agent/broker.py         Model calls through the class app store
 agent/view_parser.py    Plain English → structured view (LLM or keyword rules)
 agent/market.py         Live data from Yahoo Finance, sample-data fallback
 agent/pricing.py        Black-Scholes prices and greeks
