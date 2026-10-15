@@ -5,7 +5,7 @@
 """Build the upload ZIP for the class app store.
 
 Usage:
-    uv run --locked python package.py --slug trade-structuring-agent --output ~/Downloads/trade-structuring-agent.zip
+    python3 package.py --slug trade-structuring-agent --output ~/Downloads/trade-structuring-agent.zip
 """
 
 import argparse
@@ -26,25 +26,31 @@ if manifest["slug"] != args.slug:
     parser.error(f'workshop-app.json uses "{manifest["slug"]}"; My app uses "{args.slug}". '
                  f'Set the manifest slug to "{args.slug}", then package again.')
 
-names = [
-    "app.py",
-    "run.py",
-    "agent/__init__.py",
-    "agent/broker.py",
-    "agent/market.py",
-    "agent/pricing.py",
-    "agent/recommender.py",
-    "agent/strategies.py",
-    "agent/view_parser.py",
-    "tests/test_pricing.py",
-    "pyproject.toml",
-    "uv.lock",
-    "workshop-app.json",
-    "README.md",
-    "package.py",
-]
-# Local settings (.env, .venv, .streamlit) stay out of the ZIP.
-data = {name: (root / name).read_bytes() for name in names}
+# Published path in the ZIP -> source file in this project.
+# The class store version has no outside packages, so its pyproject.toml and
+# uv.lock come from deploy/ (the root ones are for the local Streamlit dashboard).
+files = {
+    "server.py": "server.py",
+    "web/index.html": "web/index.html",
+    "web/style.css": "web/style.css",
+    "web/charts.js": "web/charts.js",
+    "web/app.js": "web/app.js",
+    "agent/__init__.py": "agent/__init__.py",
+    "agent/broker.py": "agent/broker.py",
+    "agent/market.py": "agent/market.py",
+    "agent/pricing.py": "agent/pricing.py",
+    "agent/recommender.py": "agent/recommender.py",
+    "agent/strategies.py": "agent/strategies.py",
+    "agent/view_parser.py": "agent/view_parser.py",
+    "tests/test_pricing.py": "tests/test_pricing.py",
+    "pyproject.toml": "deploy/pyproject.toml",
+    "uv.lock": "deploy/uv.lock",
+    "workshop-app.json": "workshop-app.json",
+    "README.md": "README.md",
+}
+names = list(files)
+# Local settings (.env, .venv) stay out of the ZIP.
+data = {name: (root / source).read_bytes() for name, source in files.items()}
 
 buffer = io.BytesIO()
 with ZipFile(buffer, "w") as archive:

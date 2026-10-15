@@ -7,8 +7,6 @@ leg (100 shares) and 100 shares for a stock leg.
 import math
 from dataclasses import dataclass, field
 
-import numpy as np
-
 from agent import pricing
 
 MULTIPLIER = 100
@@ -66,7 +64,13 @@ class Strategy:
         return pricing.price(S, leg.strike, T, md.rate, md.div_yield, vol, leg.kind)
 
     def entry_values(self, md, T):
-        return [self.leg_value(leg, md, md.spot, T) for leg in self.legs]
+        key = (id(md), md.spot, md.atm_vol, md.rate, md.skew, T)
+        cached = getattr(self, "_entry_cache", None)
+        if cached and cached[0] == key:
+            return cached[1]
+        values = [self.leg_value(leg, md, md.spot, T) for leg in self.legs]
+        self._entry_cache = (key, values)
+        return values
 
     def net_premium(self, md, T):
         """Upfront option premium in $ (positive = you pay, negative = you receive)."""
@@ -110,16 +114,17 @@ class Strategy:
     # ---------- summary numbers ----------
 
     def compute_metrics(self, md, T, target_price=None):
-        spots = np.linspace(md.spot * 0.01, md.spot * 3.0, 3000)
-        pnls = np.array([self.pnl_at_expiry(md, T, s) for s in spots])
+        n, lo, hi = 3000, md.spot * 0.01, md.spot * 3.0
+        spots = [lo + (hi - lo) * i / (n - 1) for i in range(n)]
+        pnls = [self.pnl_at_expiry(md, T, s) for s in spots]
 
         # If P&L still rises (or falls) at the far right, gain (or loss) is unlimited.
         slope_right = pnls[-1] - pnls[-2]
         unlimited_gain = slope_right > 1e-6
         unlimited_loss = slope_right < -1e-6
 
-        max_gain = math.inf if unlimited_gain else float(pnls.max())
-        max_loss = -math.inf if unlimited_loss else float(pnls.min())
+        max_gain = math.inf if unlimited_gain else float(max(pnls))
+        max_loss = -math.inf if unlimited_loss else float(min(pnls))
 
         breakevens = []
         for i in range(len(spots) - 1):
@@ -153,11 +158,13 @@ class Strategy:
         sigma = md.atm_vol
         mu = math.log(md.spot) + (md.rate - md.div_yield - 0.5 * sigma**2) * T
         sd = sigma * math.sqrt(max(T, 1e-6))
-        log_s = np.log(spots)
-        density = np.exp(-((log_s - mu) ** 2) / (2 * sd**2)) / (spots * sd * math.sqrt(2 * math.pi))
-        weights = density * np.gradient(spots)
-        weights = weights / weights.sum()
-        return float(weights[pnls > 0].sum())
+        total = win = 0.0
+        for s, p in zip(spots, pnls):
+            density = math.exp(-((math.log(s) - mu) ** 2) / (2 * sd**2)) / s   # evenly spaced grid
+            total += density
+            if p > 0:
+                win += density
+        return win / total if total else 0.0
 
 
 # ---------- strategy builders ----------

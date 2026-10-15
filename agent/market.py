@@ -7,8 +7,6 @@ import logging
 import math
 from datetime import date, datetime
 
-import numpy as np
-
 from agent.strategies import MarketData
 
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -43,12 +41,16 @@ def sample_market_data(ticker, rate=0.04, skew=2.0):
 
 
 def _realized_vol(closes):
+    import numpy as np
+
     returns = np.diff(np.log(closes))
     return float(np.std(returns) * math.sqrt(252))
 
 
 def _atm_implied_vol(tk, spot, horizon_days):
     """ATM implied vol from the listed expiry closest to the horizon, or None."""
+    import numpy as np
+
     expiries = tk.options
     if not expiries:
         return None, None

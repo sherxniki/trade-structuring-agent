@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trade Structuring Agent</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header class="intro">
+    <h1>Trade Structuring Agent</h1>
+    <p>Describe what you think a stock will do, in plain English. The agent reads your view, gets market data,
+      designs three option trades, prices them and recommends the best fit.</p>
+  </header>
+
+  <section class="card" aria-labelledby="view-label">
+    <p class="label" id="examples-label">Try an example</p>
+    <div class="examples" id="examples" aria-labelledby="examples-label"></div>
+
+    <label class="label" id="view-label" for="view">Your market view</label>
+    <textarea id="view" rows="2" maxlength="1000">I think Apple goes up a bit over the next 3 months, and I don't want to spend much</textarea>
+
+    <div class="actions">
+      <button id="build" class="primary" type="button">Build my trade</button>
+      <details class="settings">
+        <summary>Settings</summary>
+        <div class="settings-grid">
+          <label>Default ticker (if none mentioned)
+            <select id="ticker"></select>
+          </label>
+          <label>Risk-free rate: <span id="rate-out">4.00</span>%
+            <input id="rate" type="range" min="0" max="8" step="0.25" value="4">
+          </label>
+          <label>Put skew: <span id="skew-out">2.0</span> vol pts per 10% lower strike
+            <input id="skew" type="range" min="0" max="6" step="0.5" value="2">
+          </label>
+          <label class="check"><input id="ai" type="checkbox" checked> Use AI to read the view
+            <span class="hint" id="ai-hint"></span></label>
+          <label class="check" id="live-row" hidden><input id="live" type="checkbox" checked> Live market data (Yahoo Finance)</label>
+        </div>
+      </details>
+    </div>
+
+    <ol class="steps" id="steps" aria-live="polite" hidden></ol>
+    <p class="error" id="error" role="alert" hidden></p>
+  </section>
+
+  <div id="results" hidden>
+    <section class="card">
+      <h2>What the agent understood</h2>
+      <div class="pills" id="pills"></div>
+      <div class="stats" id="stats"></div>
+      <p class="note" id="market-note" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Recommendation</h2>
+      <div class="callout" id="explanation"></div>
+      <p class="legs" id="best-legs"></p>
+    </section>
+
+    <section class="card">
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="compare" aria-selected="true">Compare</button>
+        <button role="tab" class="tab" data-tab="payoff" aria-selected="false">Payoff charts</button>
+        <button role="tab" class="tab" data-tab="advanced" aria-selected="false">Advanced: greeks &amp; scenarios</button>
+        <button role="tab" class="tab" data-tab="how" aria-selected="false">How it works</button>
+      </div>
+
+      <div class="panel" data-panel="compare">
+        <div class="table-wrap"><table id="compare-table"></table></div>
+        <p class="note">Per 1 contract (100 shares). Chance of profit is market-implied (risk-neutral lognormal), not a
+          forecast. Fit score balances payoff if you're right, chance of profit, cost and risk.</p>
+        <h3>Profit / loss at expiry</h3>
+        <div class="chart" id="compare-chart"></div>
+        <div class="legend" id="compare-legend"></div>
+      </div>
+
+      <div class="panel" data-panel="payoff" hidden>
+        <div class="payoff-grid" id="payoff-grid"></div>
+      </div>
+
+      <div class="panel" data-panel="advanced" hidden>
+        <div class="segmented" id="structure-pick" role="group" aria-label="Structure"></div>
+        <div class="stats" id="greeks"></div>
+        <h3>Scenario grid <span class="muted">— profit / loss ($) for a move in price and implied vol</span></h3>
+        <div class="days"><span class="muted">Days from today:</span> <span class="segmented small" id="days-pick"></span></div>
+        <div class="table-wrap"><table class="heat" id="heat"></table></div>
+        <h3>Leg detail</h3>
+        <div class="table-wrap"><table id="legs-table"></table></div>
+      </div>
+
+      <div class="panel prose" data-panel="how" hidden>
+        <p><strong>The agent runs four steps:</strong></p>
+        <ol>
+          <li><strong>Read the view.</strong> <span id="how-reader">An LLM</span> turns your sentence into structured
+            fields: ticker, direction, strength, horizon, budget and risk appetite.</li>
+          <li><strong>Get market data.</strong> Price and at-the-money implied vol, with a simple put skew added on top.
+            The class version uses sample data; run locally for live Yahoo Finance prices.</li>
+          <li><strong>Design candidates.</strong> Three structures that fit the direction, with strikes set from the
+            expected move (implied vol × √time). Risk reversals and collars are solved for close to zero cost.</li>
+          <li><strong>Price, score, explain.</strong> Black-Scholes prices and greeks for each leg, payoff and
+            breakevens at expiry, market-implied chance of profit, then a fit score that rewards payoff if you're
+            right and chance of profit, and penalises cost (if you want it cheap) and unlimited risk (if you want
+            losses capped).</li>
+        </ol>
+        <p class="muted">Assumptions: European options, Black-Scholes with a linear skew, flat rates, no fees or
+          bid/ask spread, 1 contract = 100 shares. Built for learning and demos, not investment advice.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="muted">Prices use Black-Scholes with European exercise and no fees. For education and demos, not investment advice.</footer>
+</main>
+<script src="/charts.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

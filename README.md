@@ -27,19 +27,17 @@ The **Advanced** tab shows position greeks (delta, gamma, vega, theta), a spot �
 
 ## Run it locally
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
+The web app needs only Python 3.12 (no packages to install):
 
 ```bash
-uv run --locked python run.py
+python3 server.py
 ```
 
-Open `http://localhost:8080`. Without a model connection, the app uses a built-in keyword parser and template explanations, so everything still works.
+Open `http://localhost:8080`. If `yfinance` is installed (`pip install yfinance`), a **Live market data** option appears in Settings; otherwise sample data is used.
 
-To use the class model locally, copy `.env.example` to `.env`, paste a development token from the class app store (**Account → Local development token**), and start with:
+To use the class model locally, copy `.env.example` to `.env`, paste a development token from the class app store (**Account → Local development token**), and start with `uv run --env-file .env python server.py`. Without a model, the app uses a built-in keyword parser and template explanations, so everything still works.
 
-```bash
-uv run --locked --env-file .env python run.py
-```
+There is also a Streamlit dashboard version (`app.py`) for local use: `uv run --locked python run.py`.
 
 ## Publish on the class app store
 
@@ -47,16 +45,16 @@ uv run --locked --env-file .env python run.py
 2. Build the ZIP:
 
    ```bash
-   uv run --locked python package.py --slug trade-structuring-agent --output ~/Downloads/trade-structuring-agent.zip
+   python3 package.py --slug trade-structuring-agent --output ~/Downloads/trade-structuring-agent.zip
    ```
 
 3. Upload the ZIP in **My app** and publish it.
 
-On the store, model usage comes from each visitor's class allowance, and the app uses sample market data (no public internet there).
+The store build has no internet access, so the class version uses only the Python standard library (`deploy/pyproject.toml` and `deploy/uv.lock` go into the ZIP). Model usage comes from each visitor's class allowance, and market data is sample data.
 
 ## Demo script (2 minutes)
 
-1. Switch **Market data** to *Sample (offline)* if the Wi-Fi is unreliable.
+1. Locally, turn off **Live market data** in Settings if the Wi-Fi is unreliable.
 2. Click the Apple example → walk through "What the agent understood", then the recommendation.
 3. Open **Payoff charts** → show the trade-off between capped gains and lower cost.
 4. Ask the audience for a view (any stock, any direction) and type it in.
@@ -65,8 +63,9 @@ On the store, model usage comes from each visitor's class allowance, and the app
 ## Project layout
 
 ```
-app.py                  Streamlit UI
-run.py                  Starts the app on the platform's port
+server.py               Web server and API (standard library only)
+web/                    Page, styles and charts (no outside libraries)
+app.py, run.py          Optional Streamlit dashboard for local use
 agent/broker.py         Model calls through the class app store
 agent/view_parser.py    Plain English → structured view (LLM or keyword rules)
 agent/market.py         Live data from Yahoo Finance, sample-data fallback

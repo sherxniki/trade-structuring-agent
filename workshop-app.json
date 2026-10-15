@@ -6,10 +6,10 @@
   "runtime": {
     "languages": ["python312"],
     "profile": "standard",
-    "build": ["python3.12", "-m", "compileall", "-q", "app.py", "run.py", "agent"],
-    "start": ["python3.12", "run.py"],
+    "build": ["python3.12", "-m", "py_compile", "server.py", "agent/broker.py", "agent/market.py", "agent/pricing.py", "agent/recommender.py", "agent/strategies.py", "agent/view_parser.py"],
+    "start": ["python3.12", "server.py"],
     "port": 8080,
-    "healthPath": "/_stcore/health"
+    "healthPath": "/healthz"
   },
   "instructions": "Type a market view (for example: I think Apple goes up a bit over the next 3 months, and I don't want to spend much) or click an example, then press Build my trade. Compare the trades in Payoff charts, and open Advanced for greeks and scenarios. The class version uses sample market data.",
   "inference": {

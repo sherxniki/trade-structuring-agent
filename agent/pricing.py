@@ -12,7 +12,20 @@ All functions take:
 
 import math
 
-from scipy.stats import norm
+
+class _Normal:
+    """Standard normal distribution using only the math module."""
+
+    @staticmethod
+    def cdf(x):
+        return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+    @staticmethod
+    def pdf(x):
+        return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
+norm = _Normal()
 
 MIN_T = 1e-6  # avoid dividing by zero at expiry
 

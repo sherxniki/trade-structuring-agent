@@ -39,7 +39,7 @@ def _call(path, body=None, profile=None):
     if url.scheme not in ("http", "https"):
         raise ValueError("Use an HTTP or HTTPS workshop gateway.")
     connection_type = HTTPSConnection if url.scheme == "https" else HTTPConnection
-    connection = connection_type(url.hostname, url.port, timeout=90)
+    connection = connection_type(url.hostname, url.port, timeout=45)
     headers = {
         "Authorization": "Bearer " + _token(),
         "Content-Type": "application/json",

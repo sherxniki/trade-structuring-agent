@@ -1,0 +1,5 @@
+[project]
+name = "trade-structuring-agent"
+version = "0.1.0"
+description = "Describe a market view in plain English and get option trades designed, priced and compared."
+requires-python = ">=3.12,<3.13"
